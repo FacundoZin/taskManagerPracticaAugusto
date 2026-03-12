@@ -1,8 +1,19 @@
+using Microsoft.EntityFrameworkCore;
+using TaskManagerProject.DB;
+using TaskManagerProject.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+// Configurar SQLite
+builder.Services.AddDbContext<AppDBContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("SQLiteConnection")));
+
+builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<TareaService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -14,6 +25,13 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    // Crear la base de datos si no existe (ideal para práctica rápida)
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDBContext>();
+        db.Database.EnsureCreated();
+    }
 }
 
 app.UseHttpsRedirection();

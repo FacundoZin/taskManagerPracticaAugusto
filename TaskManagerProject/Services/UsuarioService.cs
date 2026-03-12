@@ -1,4 +1,5 @@
-﻿using TaskManagerProject.DB;
+using Microsoft.EntityFrameworkCore;
+using TaskManagerProject.DB;
 using TaskManagerProject.Modelos;
 
 namespace TaskManagerProject.Services
@@ -12,67 +13,67 @@ namespace TaskManagerProject.Services
             _context = context;
         }
 
-
-        public Usuario CrearUsuario(string nombre, string email)
+        public async Task<Usuario> CrearUsuarioAsync(string nombre, string email)
         {
-            var usario = new Usuario
+            var usuario = new Usuario
             {
                 Nombre = nombre,
                 Email = email
             };
 
-            _context.Usuarios.Add(usario);
-
-            _context.SaveChanges();
-
-            return usario;
-        }
-
-        public Usuario EditarUsuario(int Id, string nombre, string email)
-        {
-            var usuario = _context.Usuarios.Where(u => u.Id == Id).FirstOrDefault();
-
-            usuario.nombre = nombre;
-            usuario.Email = email;
-
-            _context.SaveChanges();
+            _context.Usuarios.Add(usuario);
+            await _context.SaveChangesAsync();
 
             return usuario;
-
         }
 
-        public void EliminarUsuario(int IdUsuario)
+        public async Task<Usuario> EditarUsuarioAsync(int id, string nombre, string email)
         {
-            var usuario = _context.Usuarios.Where(u => u.Id == IdUsuario).FirstOrDefault();
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
 
-            if(usuario == null)
+            if (usuario == null)
             {
                 throw new Exception("Usuario no encontrado");
             }
 
-            var tareasActivas = usuario.tareas.where(t => t.completada == false).ToList();
+            usuario.Nombre = nombre;
+            usuario.Email = email;
 
-            if(tareasActivas.conunt > 0)
+            await _context.SaveChangesAsync();
+
+            return usuario;
+        }
+
+        public async Task EliminarUsuarioAsync(int idUsuario)
+        {
+            var usuario = await _context.Usuarios
+                .Include(u => u.Tareas)
+                .FirstOrDefaultAsync(u => u.Id == idUsuario);
+
+            if (usuario == null)
+            {
+                throw new Exception("Usuario no encontrado");
+            }
+
+            var tieneTareasActivas = usuario.Tareas.Any(t => !t.Completada);
+
+            if (tieneTareasActivas)
             {
                 throw new Exception("No se puede eliminar el usuario, tiene tareas activas");
             }
 
             _context.Usuarios.Remove(usuario);
-            _context.SaveChanges();
-
-            return;
+            await _context.SaveChangesAsync();
         }
 
-        public List<Usuario> ListarUsuarios()
+        public async Task<List<Usuario>> ListarUsuariosAsync()
         {
-            var usaurios = _context.Usuarios.toList();
-
-            return usaurios;
+            return await _context.Usuarios.ToListAsync();
         }
 
-        public Usuario ObtenerUsuario(int Id)
+        public async Task<Usuario> ObtenerUsuarioAsync(int id)
         {
-            var usuario = _context.Usuarios.Where(u => u.Id == Id).FirstOrDefault();
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
 
             if (usuario == null)
             {

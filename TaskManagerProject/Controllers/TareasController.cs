@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskManagerProject.Dtos;
 using TaskManagerProject.Modelos;
 using TaskManagerProject.Services;
 
@@ -17,7 +18,7 @@ namespace TaskManagerProject.Controllers
 
         // Caso de uso: Crear tarea
         [HttpPost]
-        public async Task<ActionResult<Tarea>> Post([FromBody] Tarea request)
+        public async Task<ActionResult<Tarea>> Post([FromBody] CreateTareaDto request)
         {
             try
             {

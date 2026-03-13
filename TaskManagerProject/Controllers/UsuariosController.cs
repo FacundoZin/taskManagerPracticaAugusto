@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskManagerProject.Dtos;
 using TaskManagerProject.Modelos;
 using TaskManagerProject.Services;
 
@@ -37,7 +38,7 @@ namespace TaskManagerProject.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Usuario>> Post([FromBody] Usuario request)
+        public async Task<ActionResult<Usuario>> Post([FromBody] CreateUsuarioDto request)
         {
             var usuario = await _usuarioService.CrearUsuarioAsync(request.Nombre, request.Email);
             return CreatedAtAction(nameof(Get), new { id = usuario.Id }, usuario);

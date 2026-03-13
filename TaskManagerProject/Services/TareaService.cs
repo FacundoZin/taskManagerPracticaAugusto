@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagerProject.DB;
+using TaskManagerProject.Dtos;
 using TaskManagerProject.Modelos;
 
 namespace TaskManagerProject.Services
@@ -14,7 +15,7 @@ namespace TaskManagerProject.Services
         }
 
         // Caso de uso: Crear tarea
-        public async Task<Tarea> CrearTareaAsync(Tarea nuevaTarea)
+        public async Task<Tarea> CrearTareaAsync(CreateTareaDto nuevaTarea)
         {
             // Regla de negocio: No se puede crear una tarea con fecha vencida
             if (nuevaTarea.FechaVencimiento < DateTime.Now)
@@ -41,12 +42,21 @@ namespace TaskManagerProject.Services
 
             nuevaTarea.FechaCreacion = DateTime.Now;
             nuevaTarea.Completada = false;
-            nuevaTarea.FechaFinalizacion = null;
 
-            await _context.Tareas.AddAsync(nuevaTarea);
+            var tarea = new Tarea
+            {
+                Titulo = nuevaTarea.Titulo,
+                Descripcion = nuevaTarea.Descripcion,
+                FechaCreacion = nuevaTarea.FechaCreacion,
+                FechaVencimiento = nuevaTarea.FechaVencimiento,
+                Completada = nuevaTarea.Completada,
+                UsuarioId = nuevaTarea.UsuarioId
+            };
+
+            await _context.Tareas.AddAsync(tarea);
             await _context.SaveChangesAsync();
 
-            return nuevaTarea;
+            return tarea;
         }
 
         // Caso de uso: Editar tarea

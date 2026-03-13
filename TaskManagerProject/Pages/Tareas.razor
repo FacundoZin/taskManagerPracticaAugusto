@@ -1,0 +1,167 @@
+@page "/tareas"
+@using Microsoft.AspNetCore.WebUtilities
+@inject HttpClient Http
+@inject NavigationManager Navigator
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Tareas - Blazor Server</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex align-items-center mb-4">
+        <button class="btn btn-outline-secondary me-3" @onclick="Volver">
+            <i class="bi bi-arrow-left"></i> Volver
+        </button>
+        <h1 class="h2 mb-0">Gestión de Tareas</h1>
+    </div>
+
+    @if (usuarioSeleccionado != null)
+    {
+        <div class="card border-0 bg-primary text-white shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-1">Usuario: @usuarioSeleccionado.Nombre</h5>
+                    <p class="mb-0 opacity-75 small">@usuarioSeleccionado.Email</p>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-white text-primary rounded-pill px-3">@(tareas?.Count ?? 0) Tareas totales</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4 bg-light">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Nueva Tarea</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-lg" placeholder="¿Qué hay que hacer?"
+                               @bind="nuevaTarea.Titulo" />
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" class="form-control form-control-lg" placeholder="Descripción opcional..."
+                               @bind="nuevaTarea.Descripcion" />
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" class="form-control form-control-lg" @bind="nuevaTarea.FechaVencimiento" />
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button class="btn btn-success btn-lg w-100 shadow-sm" @onclick="CrearTarea">
+                            Añadir Tarea Pendiente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (tareas == null && usuarioId != null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else if (tareas != null)
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            @foreach (var tarea in tareas)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm transition-card @(tarea.Completada ? "bg-light border-success" : "border-start border-4 border-primary")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title text-dark mb-0">@tarea.Titulo</h5>
+                                @if (tarea.Completada)
+                                {
+                                    <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Lista</span>
+                                }
+                                else if (tarea.FechaVencimiento < DateTime.Now)
+                                {
+                                    <span class="badge bg-danger">Vencida</span>
+                                }
+                            </div>
+                            <p class="card-text text-muted small mb-3">@tarea.Descripcion</p>
+                            <div class="d-flex align-items-center text-muted small">
+                                <i class="bi bi-calendar-event me-2"></i>
+                                Vence: @tarea.FechaVencimiento.ToShortDateString()
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 pt-0 pb-3 d-flex gap-2">
+                            @if (!tarea.Completada)
+                            {
+                                <button class="btn btn-sm btn-primary flex-grow-1"
+                                        @onclick="() => CompletarTarea(tarea.Id)">Completar</button>
+                            }
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarTarea(tarea.Id)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Tarea>? tareas;
+    private Usuario? usuarioSeleccionado;
+    private Tarea nuevaTarea = new Tarea { FechaVencimiento = DateTime.Now.AddDays(7) };
+    private int? usuarioId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigator.ToAbsoluteUri(Navigator.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("usuarioId", out var idStr))
+        {
+            if (int.TryParse(idStr, out var id))
+            {
+                usuarioId = id;
+                await CargarUsuario();
+                await CargarTareas();
+            }
+        }
+    }
+
+    private async Task CargarUsuario()
+    {
+        usuarioSeleccionado = await Http.GetFromJsonAsync<Usuario>($"api/Usuarios/{usuarioId}");
+    }
+
+    private async Task CargarTareas()
+    {
+        tareas = await Http.GetFromJsonAsync<List<Tarea>>($"api/Tareas/usuario/{usuarioId}");
+    }
+
+    private async Task CrearTarea()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaTarea.Titulo)) return;
+
+        nuevaTarea.UsuarioId = usuarioId!.Value;
+        var response = await Http.PostAsJsonAsync("api/Tareas", nuevaTarea);
+
+        if (response.IsSuccessStatusCode)
+        {
+            nuevaTarea = new Tarea { FechaVencimiento = DateTime.Now.AddDays(7) };
+            await CargarTareas();
+        }
+        else
+        {
+            var msg = await response.Content.ReadAsStringAsync();
+            await JS.InvokeVoidAsync("alert", msg);
+        }
+    }
+
+    private async Task CompletarTarea(int id)
+    {
+        await Http.PatchAsync($"api/Tareas/{id}/completar", null);
+        await CargarTareas();
+    }
+
+    private async Task EliminarTarea(int id)
+    {
+        await Http.DeleteAsync($"api/Tareas/{id}");
+        await CargarTareas();
+    }
+
+    private void Volver() => Navigator.NavigateTo("usuarios");
+}

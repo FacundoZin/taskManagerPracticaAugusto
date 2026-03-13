@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TaskManagerProject;
 using TaskManagerProject.DB;
 using TaskManagerProject.Services;
 
@@ -7,6 +8,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+// Configurar HttpClient para consumir la propia API
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7214") }); 
 
 // Configurar SQLite
 builder.Services.AddDbContext<AppDBContext>(options =>
@@ -35,9 +41,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseAntiforgery();
 
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 app.Run();

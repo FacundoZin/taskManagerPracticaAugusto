@@ -1,0 +1,139 @@
+@page "/usuarios"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Usuarios - Blazor Server</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary">Gestión de Usuarios</h1>
+        <span class="badge bg-primary rounded-pill">Blazor Interactive</span>
+    </div>
+
+    <div class="card shadow-lg border-0 mb-5">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 text-secondary">Añadir Nuevo Miembro</h5>
+        </div>
+        <div class="card-body bg-light">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="nombreInput" placeholder="Nombre" @bind="nuevoUsuario.Nombre" />
+                        <label for="nombreInput">Nombre Completo</label>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="form-floating">
+                        <input type="email" class="form-control" id="emailInput" placeholder="nombre@ejemplo.com" @bind="nuevoUsuario.Email" />
+                        <label for="emailInput">Correo Electrónico</label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-stretch">
+                    <button class="btn btn-primary w-100 shadow-sm" @onclick="CrearUsuario">
+                        <i class="bi bi-person-plus-fill"></i> Crear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (usuarios == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-grow text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Obteniendo usuarios desde el API...</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive rounded-3 shadow-sm">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var usuario in usuarios)
+                    {
+                        <tr>
+                            <td class="ps-4 text-muted fw-bold">#@usuario.Id</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-3 bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        @usuario.Nombre.Substring(0, 1).ToUpper()
+                                    </div>
+                                    @usuario.Nombre
+                                </div>
+                            </td>
+                            <td>@usuario.Email</td>
+                            <td class="text-center">
+                                <div class="btn-group shadow-sm">
+                                    <a href="tareas?usuarioId=@usuario.Id" class="btn btn-sm btn-outline-info">
+                                        Tareas
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarUsuario(usuario.Id)">
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Usuario>? usuarios;
+    private Usuario nuevoUsuario = new Usuario();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUsuarios();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try 
+        {
+            usuarios = await Http.GetFromJsonAsync<List<Usuario>>("api/Usuarios");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("console.error", "Error cargando usuarios: " + ex.Message);
+        }
+    }
+
+    private async Task CrearUsuario()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoUsuario.Nombre) || string.IsNullOrWhiteSpace(nuevoUsuario.Email))
+        {
+            await JS.InvokeVoidAsync("alert", "Por favor, complete todos los campos.");
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/Usuarios", nuevoUsuario);
+        if (response.IsSuccessStatusCode)
+        {
+            nuevoUsuario = new Usuario();
+            await CargarUsuarios();
+        }
+    }
+
+    private async Task EliminarUsuario(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Eliminar este usuario y todas sus tareas?"))
+        {
+            await Http.DeleteAsync($"api/Usuarios/{id}");
+            await CargarUsuarios();
+        }
+    }
+}
